@@ -1,5 +1,5 @@
-uint8 motor_id
-uint8 command
+uint8 id_motor
+int32 command
 int64 data
 ---
 uint8 result

@@ -26,6 +26,25 @@ class NidecMotor{
     bool update();
     struct MotorResponse readResponse();
 
+    enum Command{
+        run_,
+        stop_,
+        emmergencyStop_,
+        breakCommand_,
+        servoOn_,
+        servoOff_,
+        getErrorInfo_,
+        resetError_,
+        checkConnection_,
+
+        readDeviceID_,
+        readControlMode_,
+        writeControlMode_,
+        offsetEncoder_,
+
+        spinMotor_
+    };
+
     /*
     MotorResponse getDeviceID();
     MotorResponse run();
