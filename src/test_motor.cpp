@@ -177,6 +177,7 @@ int main(int argc, char **argv){
             NidecMotor::MotorResponse response = motorL.readResponse();
             twin_crawler_controller::motor_response topic_response;
             topic_response.id_motor = 2;
+            topic_response.command = response.ack & 0x3f;
             topic_response.result = response.result;
             topic_response.result_message = response.result_message;
             topic_response.ack = response.ack;

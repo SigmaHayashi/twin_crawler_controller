@@ -18,10 +18,10 @@ class NidecMotor{
     };
 
     enum ControlMode{
-        Release,
-        Position,
-        Speed,
-        Torque
+        Release = 0x00,
+        Position = 0x01,
+        Speed = 0x04,
+        Torque = 0x10
     };
 
     bool update();

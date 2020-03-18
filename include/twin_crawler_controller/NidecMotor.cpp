@@ -151,6 +151,17 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
     //printf("\n");
     //printf("response.data : %ld\n", response.data);
 
+    if(response.result){
+        if(motor->new_attribute_command == 0x0022){
+            //printf("%ld\n", response.data);
+            //int data = (int)response.data;
+            //printf("%d\n", data);
+            //response.data = (long)(data >> 12);
+            //printf("%ld\n", response.data);
+            response.data = (int)response.data >> 12;
+        }
+    }
+
     return response;
 }
 
@@ -239,6 +250,7 @@ void NidecMotor::writeControlMode(ControlMode mode){
     motor->new_attribute_command = 0x0001;
     uint8_t data;
     switch (mode){
+        /*
         case Release:
         data = 0x00;
         break;
@@ -254,7 +266,14 @@ void NidecMotor::writeControlMode(ControlMode mode){
         case Torque:
         data = 0x10;
         break;
-
+        */
+        case Release:
+        case Position:
+        case Speed:
+        case Torque:
+        data = mode;
+        break;
+        
         default:
         printf("Control mode error : %d\n", mode);
         return;
