@@ -45,7 +45,8 @@ class NidecMotor{
         offsetEncoder_,
 
         //spinMotor_
-        rollBySpeed_
+        rollBySpeed_,
+        readSpeed_
     };
 
     /*
@@ -85,6 +86,7 @@ class NidecMotor{
     //速度制御
     //void spinMotor(int rpm);
     void rollBySpeed(int rpm);
+    void readSpeed();
 
     private:
     NidecMotor *motor;
@@ -124,6 +126,8 @@ class NidecMotor{
     void analyzeReadData(uint8_t *read_data, int length);
     //void getDataData();
     //void getAck();
+
+    void returnACK(uint8_t *data);
 };
 
 #endif

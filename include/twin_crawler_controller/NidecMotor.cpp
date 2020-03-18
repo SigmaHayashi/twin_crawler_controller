@@ -74,6 +74,42 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
 
     response.raw_data = analyzed_data.raw_data;
 
+    if((analyzed_data.operation_command & 0x3f) == 0x11){
+        response.command = motor->new_command;
+        response.result = false;
+        response.result_message = "Error Information";
+        response.ack = analyzed_data.operation_command;
+
+        char nak_code[20];
+        int nak_code_int = 0;
+        for(int i = 0; i < analyzed_data.data_length - 5; i++){
+            nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
+        }
+        sprintf(nak_code, "0x%08x", nak_code_int);
+        response.ack_message = "Error Code : " + std::string(nak_code);
+
+        response.data = 0;
+        return response;
+    }
+
+    if((analyzed_data.operation_command & 0x3f) == 0x10){
+        response.command = motor->new_command;
+        response.result = true;
+        response.result_message = "Error Information";
+        response.ack = analyzed_data.operation_command;
+
+        char nak_code[20];
+        int nak_code_int = 0;
+        for(int i = 0; i < analyzed_data.data_length - 5; i++){
+            nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
+        }
+        sprintf(nak_code, "0x%08x", nak_code_int);
+        response.ack_message = "Error Code : " + std::string(nak_code);
+
+        response.data = 0;
+        return response;
+    }
+
     response.result = true;
     std::string error_message = "";
     //printf("%02x, %02x\n", analyzed_data.operation_command & 0x3f, motor->new_operation_command);
@@ -112,8 +148,13 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
         response.ack_message = "ACK";
     }
     else{
-        char nak_code[10];
-        sprintf(nak_code, "0x%x", *analyzed_data.data);
+        char nak_code[20];
+        //sprintf(nak_code, "0x%x", *analyzed_data.data);
+        int nak_code_int = 0;
+        for(int i = 0; i < analyzed_data.data_length - 5; i++){
+            nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
+        }
+        sprintf(nak_code, "0x%x", nak_code_int);
         response.ack_message = "NAK : " + std::string(nak_code);
     }
 
@@ -131,13 +172,15 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
     if(response.result){
         response.command = motor->new_command;
 
-        if(motor->new_attribute_command == 0x0022){
-            //printf("%ld\n", response.data);
-            //int data = (int)response.data;
-            //printf("%d\n", data);
-            //response.data = (long)(data >> 12);
-            //printf("%ld\n", response.data);
-            response.data = (int)response.data >> 12;
+        if(response.ack_message == "Complete" || response.ack_message == "ACK"){
+            if(motor->new_attribute_command == 0x0022 || motor->new_attribute_command == 0x0021){
+                //printf("%ld\n", response.data);
+                //int data = (int)response.data;
+                //printf("%d\n", data);
+                //response.data = (long)(data >> 12);
+                //printf("%ld\n", response.data);
+                response.data = (int)response.data >> 12;
+            }
         }
     }
 
@@ -299,6 +342,13 @@ void NidecMotor::rollBySpeed(int rpm){
     writeData(5 + 4, motor->new_operation_command, motor->new_attribute_command, data);
 }
 
+void NidecMotor::readSpeed(){
+    motor->new_command = readSpeed_;
+    motor->new_operation_command = 0x01;
+    motor->new_attribute_command = 0x0021;
+    writeData(5, motor->new_operation_command, motor->new_attribute_command);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 uint8_t NidecMotor::calcCheckSum(uint8_t *data, int check_sum_length){
@@ -396,6 +446,10 @@ void NidecMotor::analyzeReadData(uint8_t *read_data, int length){
     */
     analyzed_data.check_sum = read_data[3 + analyzed_data.data_length];
 
+    if(analyzed_data.operation_command == 0x11){
+        motor->returnACK(analyzed_data.data);
+    }
+
     printf("\n");
     printf("send_from : 0x%02x\n", analyzed_data.send_from);
     printf("send_to : 0x%02x\n", analyzed_data.send_to);
@@ -423,3 +477,7 @@ void NidecMotor::getAck(){
 
 }
 */
+
+void NidecMotor::returnACK(uint8_t *data){
+    writeData(9, 0x91, 0xffff, data);
+}
