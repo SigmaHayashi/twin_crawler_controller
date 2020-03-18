@@ -18,11 +18,9 @@
 #define fd1_address "/dev/ttyUSB-MotorL"
 #define fd2_address "/dev/ttyUSB-MotorR"
 
-//bool motorL_lock = false;
 const bool use_motor_left = true;
 const bool use_motor_right = true;
 
-//bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_crawler_controller::motor_request::Response &res){
 bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_crawler_controller::motor_request::Response &res, NidecMotor *motor_left, NidecMotor *motor_right){
     NidecMotor *motor;
     switch(req.id_motor){
@@ -50,83 +48,6 @@ bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_
         return true;
     }
 
-    /*
-    if(req.id_motor == 2){
-        if(motorL_lock){
-            res.result = 0;
-            res.result_message = "motorL is Locked...";
-        }
-        else{
-            res.result = 1;
-            res.result_message = "Request Accept";
-            switch(req.command){
-                case NidecMotor::Command::run_:
-                motor_left.run();
-                break;
-
-                case NidecMotor::Command::stop_:
-                motor_left.stop();
-                break;
-
-                case NidecMotor::Command::emmergencyStop_:
-                motor_left.emmergencyStop();
-                break;
-
-                case NidecMotor::Command::breakCommand_:
-                motor_left.breakCommand();
-                break;
-
-                case NidecMotor::Command::servoOn_:
-                motor_left.servoOn();
-                break;
-
-                case NidecMotor::Command::servoOff_:
-                motor_left.servoOff();
-                break;
-
-                case NidecMotor::Command::getErrorInfo_:
-                motor_left.getErrorInfo();
-                break;
-
-                case NidecMotor::Command::resetError_:
-                motor_left.resetError();
-                break;
-
-                case NidecMotor::Command::checkConnection_:
-                motor_left.checkConnection();
-                break;
-
-                case NidecMotor::Command::readDeviceID_:
-                motor_left.readDeviceID();
-                break;
-
-                case NidecMotor::Command::readControlMode_:
-                motor_left.readControlMode();
-                break;
-
-                case NidecMotor::Command::writeControlMode_:
-                motor_left.writeControlMode((NidecMotor::ControlMode)req.data);
-                break;
-
-                case NidecMotor::Command::offsetEncoder_:
-                motor_left.offsetEncoder();
-                break;
-
-                //case NidecMotor::Command::spinMotor_:
-                //motorL.spinMotor((int)req.data);
-                case NidecMotor::Command::rollBySpeed_:
-                motor_left.rollBySpeed((int)req.data);
-                break;
-
-                default:
-                res.result = 0;
-                res.result_message = "Not defined yet";
-                break;
-            }
-            //motorL_lock = true;
-        //}
-    }
-    */
     res.result = 1;
     res.result_message = "Request Accept";
     switch(req.command){
@@ -182,8 +103,6 @@ bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_
         motor->offsetEncoder();
         break;
 
-        //case NidecMotor::Command::spinMotor_:
-        //motorL.spinMotor((int)req.data);
         case NidecMotor::Command::rollBySpeed_:
         motor->rollBySpeed((int)req.data);
         break;
@@ -243,16 +162,6 @@ int main(int argc, char **argv){
     ros::init(argc, argv, "test_motor");
     ros::NodeHandle nh;
     
-    /*
-    int fd;
-    struct termios oldtio, newtio;
-
-    fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if(fd < 0){
-        ROS_ERROR("Serial port error : fd = %d", fd);
-        return 1;
-    }
-    */
     bool serial_error = false;
 
     int fd1 = openSerial(fd1_address);
@@ -284,19 +193,13 @@ int main(int argc, char **argv){
     NidecMotor motor_left(fd1, 1, 2);
     NidecMotor motor_right(fd2, 1, 3);
 
-    //ros::ServiceServer motor_request_subscriber = nh.advertiseService("motor_request", requestCallback);
     ros::ServiceServer motor_request_subscriber = nh.advertiseService<twin_crawler_controller::motor_request::Request, twin_crawler_controller::motor_request::Response>("motor_request", boost::bind(&requestCallback, _1, _2, &motor_left, &motor_right));
     ros::Publisher motor_response_publisher = nh.advertise<twin_crawler_controller::motor_response>("motor_response", 100);
 
     //ros::Rate loop_rate(5);
     ROS_INFO("Start");
 
-    //NidecMotor::MotorResponse response = motorL.getDeviceID();
-    //printf("result : %d\n", response.result);
-    //printf("result message : %s\n", response.result_message.c_str());
     while(ros::ok()){
-        //ROS_INFO("roop");
-        //printf("roop\n");
         if(use_motor_left){
             if(motor_left.update()){
                 //printf("motor_left true\n");
@@ -310,7 +213,6 @@ int main(int argc, char **argv){
                 topic_response.ack_message = response.ack_message;
                 topic_response.data = response.data;
                 motor_response_publisher.publish(topic_response);
-                //motorL_lock = false;
             }
             else{
                 //printf("motor_left false\n");
@@ -330,7 +232,6 @@ int main(int argc, char **argv){
                 topic_response.ack_message = response.ack_message;
                 topic_response.data = response.data;
                 motor_response_publisher.publish(topic_response);
-                //motorL_lock = false;
             }
             else{
                 //printf("motor_right false\n");

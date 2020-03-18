@@ -44,30 +44,10 @@ class NidecMotor{
         writeControlMode_,
         offsetEncoder_,
 
-        //spinMotor_
         rollBySpeed_,
         readSpeed_
     };
 
-    /*
-    MotorResponse getDeviceID();
-    MotorResponse run();
-    MotorResponse stop();
-    MotorResponse emmergencyStop();
-    MotorResponse breakCommand();
-    MotorResponse servoOn();
-    MotorResponse servoOff();
-    MotorResponse getErrorInfo();
-    MotorResponse resetError();
-    MotorResponse checkConnection();
-
-    MotorResponse readControlMode();
-    MotorResponse writeControlMode(ControlMode mode);
-    MotorResponse offsetEncoder();
-
-    //速度指令モードの確認
-    MotorResponse spinMotor(int rpm);
-    */
     void run();
     void stop();
     void emmergencyStop();
@@ -84,7 +64,6 @@ class NidecMotor{
     void offsetEncoder();
 
     //速度制御
-    //void spinMotor(int rpm);
     void rollBySpeed(int rpm);
     void readSpeed();
 
@@ -97,15 +76,6 @@ class NidecMotor{
     int new_command;
     uint8_t new_operation_command;
     uint16_t new_attribute_command;
-
-    /*
-    struct MotorRequest{
-        int data_length;
-        uint8_t operation_command;
-        uint8_t attribute_command[2];
-        uint8_t data[];
-    };
-    */
 
     struct AnalyzedData{
         uint8_t *raw_data;
@@ -122,10 +92,7 @@ class NidecMotor{
     uint8_t calcCheckSum(uint8_t *data, int check_sum_length);
     void writeData(int data_length, uint8_t operation_command, uint16_t attribute_command = 0, uint8_t *data = 0);
     void readData();
-    //struct AnalyzedData analyzeReadData(uint8_t *read_data);
     void analyzeReadData(uint8_t *read_data, int length);
-    //void getDataData();
-    //void getAck();
 
     void returnACK(uint8_t *data);
 };

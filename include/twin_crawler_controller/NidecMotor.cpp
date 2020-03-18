@@ -35,12 +35,10 @@ bool NidecMotor::update(){
     for(int i = 0; i < 128; i ++){
         if(!start_buffering && (read_buf[i] == 0x7e)){
             start_idx = i;
-            //printf("start_ids : %d\n", start_idx);
             start_buffering = true;
         }
         if(start_buffering && !end_buffering && (read_buf[i] == 0x7f)){
             end_idx = i;
-            //printf("end_idx : %d\n", end_idx);
             end_buffering = true;
             break;
         }
@@ -49,19 +47,12 @@ bool NidecMotor::update(){
         return false;
     }
 
-    //uint8_t analyze_buf[128];
-    //printf("analyze_buf : ");
-    //for(int i = 0; i < end_idx - start_idx + 1 - i; i++){
     for(int i = 0; i < end_idx - start_idx + 1; i++){
         analyze_buf[i] = read_buf[start_idx + i];
-        //printf("%02x ", analyze_buf[i]);
     }
-    //printf("\n");
-    //analyzed_data = analyzeReadData(analyze_buf);
     analyzeReadData(analyze_buf, end_idx - start_idx + 1);
     
     for(int i = 0; i < 128; i ++){
-        //read_buf[i] = analyze_buf[i] = 0;
         read_buf[i] = 0;
         read_buf_index = 0;
     }
@@ -112,12 +103,10 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
 
     response.result = true;
     std::string error_message = "";
-    //printf("%02x, %02x\n", analyzed_data.operation_command & 0x3f, motor->new_operation_command);
     if((analyzed_data.operation_command & 0x3f) != motor->new_operation_command){
         response.result = false;
         error_message += "Returned Different Operation Command\n";
     }
-    //printf("%02x, %02x\n", analyzed_data.attribute_command, motor->new_attribute_command);
     if(analyzed_data.data_length > 3 && analyzed_data.attribute_command != motor->new_attribute_command){
         response.result = false;
         error_message += "Returned Diffetent Attribute Command\n";
@@ -135,12 +124,6 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
     }
 
     response.ack = analyzed_data.operation_command;
-    /*
-    printf("operation_command & 0xc0 : %02x\n", analyzed_data.operation_command & 0xc0);
-    if(0x80 == 0xc0){
-        printf("0x80 = 0xc0\n");
-    }
-    */
     if((analyzed_data.operation_command & 0xc0) == 0xc0){
         response.ack_message = "Complete";
     }
@@ -149,7 +132,6 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
     }
     else{
         char nak_code[20];
-        //sprintf(nak_code, "0x%x", *analyzed_data.data);
         int nak_code_int = 0;
         for(int i = 0; i < analyzed_data.data_length - 5; i++){
             nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
@@ -158,27 +140,16 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
         response.ack_message = "NAK : " + std::string(nak_code);
     }
 
-    //response.data = *analyzed_data.data;
     response.data = 0;
-    //printf("data : ");
     for(int i = 0; i < analyzed_data.data_length - 5; i++){
         response.data = response.data << 8 | analyzed_data.data[i];
-        //printf("%02x\n", analyzed_data.data[i]);
-        //printf("response.data : %ld\n", response.data);
     }
-    //printf("\n");
-    //printf("response.data : %ld\n", response.data);
 
     if(response.result){
         response.command = motor->new_command;
 
         if(response.ack_message == "Complete" || response.ack_message == "ACK"){
             if(motor->new_attribute_command == 0x0022 || motor->new_attribute_command == 0x0021){
-                //printf("%ld\n", response.data);
-                //int data = (int)response.data;
-                //printf("%d\n", data);
-                //response.data = (long)(data >> 12);
-                //printf("%ld\n", response.data);
                 response.data = (int)response.data >> 12;
             }
         }
@@ -190,12 +161,6 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void NidecMotor::run(){
-    /*
-    uint8_t operation_command = 0x03;
-
-    writeData(3, operation_command);
-    new_operation_command = operation_command;
-    */
    motor->new_command = run_;
    motor->new_operation_command = 0x03;
    writeData(3, motor->new_operation_command);
@@ -250,25 +215,10 @@ void NidecMotor::checkConnection(){
 }
 
 void NidecMotor::readDeviceID(){
-    /*
-    uint8_t operation_command = 0x01;
-    uint16_t attribute_command = 0x0004;
-
-    writeData(5, operation_command, attribute_command);
-    new_operation_command = operation_command;
-    new_attribute_command = attribute_command;
-    */
     motor->new_command = readDeviceID_;
     motor->new_operation_command = 0x01;
     motor->new_attribute_command = 0x0004;
     writeData(5, motor->new_operation_command, motor->new_attribute_command);
-
-    /*
-    MotorResponse response;
-    response.result = 0;
-    response.result_message = "sample";
-    return response;
-    */
 }
 
 void NidecMotor::readControlMode(){
@@ -284,23 +234,6 @@ void NidecMotor::writeControlMode(ControlMode mode){
     motor->new_attribute_command = 0x0001;
     uint8_t data;
     switch (mode){
-        /*
-        case Release:
-        data = 0x00;
-        break;
-
-        case Position:
-        data = 0x01;
-        break;
-
-        case Speed:
-        data = 0x04;
-        break;
-
-        case Torque:
-        data = 0x10;
-        break;
-        */
         case Release:
         case Position:
         case Speed:
@@ -322,22 +255,18 @@ void NidecMotor::offsetEncoder(){
     writeData(5, motor->new_operation_command, motor->new_attribute_command);
 }
 
-//速度指令モードの確認
-//void NidecMotor::spinMotor(int rpm){
+//速度制御
 void NidecMotor::rollBySpeed(int rpm){
     motor->new_command = rollBySpeed_;
     motor->new_operation_command = 0x05;
     motor->new_attribute_command = 0x0022;
 
-    //printf("%08x\n", rpm);
     rpm = rpm << 12;
-    //printf("%08x\n", rpm);
     uint8_t data[4];
     data[0] = rpm >> 24;
     data[1] = rpm >> 16;
     data[2] = rpm >> 8;
     data[3] = rpm >> 0;
-    //printf("%02x %02x %02x %02x\n", data[0], data[1], data[2], data[3]);
     
     writeData(5 + 4, motor->new_operation_command, motor->new_attribute_command, data);
 }
@@ -353,8 +282,6 @@ void NidecMotor::readSpeed(){
 
 uint8_t NidecMotor::calcCheckSum(uint8_t *data, int check_sum_length){
     uint8_t sum = 0x00;
-    //printf("sizeof(data) : %d\n", sizeof(data));
-    //for(int i = 0; i < sizeof(data); i++){
     for(int i = 0; i < check_sum_length; i++){
         sum += data[i];
     }
@@ -389,8 +316,6 @@ void NidecMotor::writeData(int data_length, uint8_t operation_command, uint16_t 
     data_send[idx++] = calcCheckSum(data_common, data_length + 2);
     data_send[idx++] = 0x7f;
     
-    //printf("WriteData : %x", data_send);
-    //printf("CheckSum : %02x\n", calcCheckSum(data_common, data_length + 2));
     printf("\nWriteData : 0x");
     for(int i = 0; i < data_length + 5; i++){
         printf("%02x ", data_send[i]);
@@ -412,7 +337,6 @@ void NidecMotor::readData(){
     }
 }
 
-//NidecMotor::AnalyzedData NidecMotor::analyzeReadData(uint8_t *read_data){
 void NidecMotor::analyzeReadData(uint8_t *read_data, int length){
     printf("\nAnalyzeData : 0x");
     for(int i = 0; i < length; i ++){
@@ -432,18 +356,6 @@ void NidecMotor::analyzeReadData(uint8_t *read_data, int length){
             analyzed_data.data = &read_data[8];
         }
     }
-    /*
-    uint8_t data_data[analyzed_data.data_length - 5];
-    for(int i = 0; i < analyzed_data.data_length - 5; i++){
-        data_data[i] = read_data[8 + i];
-    }
-    analyzed_data.data = data_data;
-    */
-    /*
-    if(analyzed_data.data_length > 5){
-        analyzed_data.data = &read_data[8];
-    }
-    */
     analyzed_data.check_sum = read_data[3 + analyzed_data.data_length];
 
     if(analyzed_data.operation_command == 0x11){
@@ -467,16 +379,6 @@ void NidecMotor::analyzeReadData(uint8_t *read_data, int length){
     }
     printf("check_sum : 0x%02x\n", analyzed_data.check_sum);
 }
-
-/*
-void NidecMotor::getDataData(){
-
-}
-
-void NidecMotor::getAck(){
-
-}
-*/
 
 void NidecMotor::returnACK(uint8_t *data){
     writeData(9, 0x91, 0xffff, data);
