@@ -58,7 +58,7 @@ bool NidecMotor::update(){
     }
     //printf("\n");
     //analyzed_data = analyzeReadData(analyze_buf);
-    analyzeReadData(analyze_buf);
+    analyzeReadData(analyze_buf, end_idx - start_idx + 1);
     
     for(int i = 0; i < 128; i ++){
         //read_buf[i] = analyze_buf[i] = 0;
@@ -66,29 +66,6 @@ bool NidecMotor::update(){
         read_buf_index = 0;
     }
 
-    /*
-    if(analyzed_data.send_to != id_pc || analyzed_data.send_from != id_motor){
-        return false;
-    }
-    */
-   /*
-    printf("\n");
-    printf("send_from : 0x%02x\n", analyzed_data.send_from);
-    printf("send_to : 0x%02x\n", analyzed_data.send_to);
-    printf("data_length : 0x%04x\n", analyzed_data.data_length);
-    printf("operation_command : 0x%02x\n", analyzed_data.operation_command);
-    if(analyzed_data.data_length > 3){
-        printf("attribute_command : 0x%04x\n", analyzed_data.attribute_command);
-        if(analyzed_data.data_length > 5){
-            printf("data : 0x");
-            for(int i = 0; i < analyzed_data.data_length - 5; i++){
-                printf("%02x", analyzed_data.data[i]);
-            }
-            printf("\n");
-        }
-    }
-    printf("check_sum : 0x%02x\n", analyzed_data.check_sum);
-    */
     return true;
 }
 
@@ -152,6 +129,8 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
     //printf("response.data : %ld\n", response.data);
 
     if(response.result){
+        response.command = motor->new_command;
+
         if(motor->new_attribute_command == 0x0022){
             //printf("%ld\n", response.data);
             //int data = (int)response.data;
@@ -174,46 +153,55 @@ void NidecMotor::run(){
     writeData(3, operation_command);
     new_operation_command = operation_command;
     */
+   motor->new_command = run_;
    motor->new_operation_command = 0x03;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::stop(){
+   motor->new_command = stop_;
    motor->new_operation_command = 0x08;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::emmergencyStop(){
+   motor->new_command = emmergencyStop_;
    motor->new_operation_command = 0x09;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::breakCommand(){
+   motor->new_command = breakCommand_;
    motor->new_operation_command = 0x0a;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::servoOn(){
+   motor->new_command = servoOn_;
    motor->new_operation_command = 0x0e;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::servoOff(){
+   motor->new_command = servoOff_;
    motor->new_operation_command = 0x0f;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::getErrorInfo(){
+   motor->new_command = getErrorInfo_;
    motor->new_operation_command = 0x10;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::resetError(){
+   motor->new_command = resetError_;
    motor->new_operation_command = 0x12;
    writeData(3, motor->new_operation_command);
 }
 
 void NidecMotor::checkConnection(){
+   motor->new_command = checkConnection_;
    motor->new_operation_command = 0x22;
    writeData(3, motor->new_operation_command);
 }
@@ -227,6 +215,7 @@ void NidecMotor::readDeviceID(){
     new_operation_command = operation_command;
     new_attribute_command = attribute_command;
     */
+    motor->new_command = readDeviceID_;
     motor->new_operation_command = 0x01;
     motor->new_attribute_command = 0x0004;
     writeData(5, motor->new_operation_command, motor->new_attribute_command);
@@ -240,12 +229,14 @@ void NidecMotor::readDeviceID(){
 }
 
 void NidecMotor::readControlMode(){
+    motor->new_command = readControlMode_;
     motor->new_operation_command = 0x01;
     motor->new_attribute_command = 0x0001;
     writeData(5, motor->new_operation_command, motor->new_attribute_command);
 }
 
 void NidecMotor::writeControlMode(ControlMode mode){
+    motor->new_command = writeControlMode_;
     motor->new_operation_command = 0x05;
     motor->new_attribute_command = 0x0001;
     uint8_t data;
@@ -282,13 +273,16 @@ void NidecMotor::writeControlMode(ControlMode mode){
 }
 
 void NidecMotor::offsetEncoder(){
+    motor->new_command = offsetEncoder_;
     motor->new_operation_command = 0x05;
     motor->new_attribute_command = 0x001f;
     writeData(5, motor->new_operation_command, motor->new_attribute_command);
 }
 
 //速度指令モードの確認
-void NidecMotor::spinMotor(int rpm){
+//void NidecMotor::spinMotor(int rpm){
+void NidecMotor::rollBySpeed(int rpm){
+    motor->new_command = rollBySpeed_;
     motor->new_operation_command = 0x05;
     motor->new_attribute_command = 0x0022;
 
@@ -346,10 +340,10 @@ void NidecMotor::writeData(int data_length, uint8_t operation_command, uint16_t 
     data_send[idx++] = 0x7f;
     
     //printf("WriteData : %x", data_send);
-    printf("CheckSum : %02x\n", calcCheckSum(data_common, data_length + 2));
-    printf("WriteData : 0x");
+    //printf("CheckSum : %02x\n", calcCheckSum(data_common, data_length + 2));
+    printf("\nWriteData : 0x");
     for(int i = 0; i < data_length + 5; i++){
-        printf("%02x", data_send[i]);
+        printf("%02x ", data_send[i]);
     }
     printf("\n");
     
@@ -369,9 +363,9 @@ void NidecMotor::readData(){
 }
 
 //NidecMotor::AnalyzedData NidecMotor::analyzeReadData(uint8_t *read_data){
-void NidecMotor::analyzeReadData(uint8_t *read_data){
-    printf("AnalyzeData : 0x");
-    for(int i = 0; i < 128; i ++){
+void NidecMotor::analyzeReadData(uint8_t *read_data, int length){
+    printf("\nAnalyzeData : 0x");
+    for(int i = 0; i < length; i ++){
         printf("%02x ", read_data[i]);
     }
     printf("\n");
@@ -402,6 +396,7 @@ void NidecMotor::analyzeReadData(uint8_t *read_data){
     */
     analyzed_data.check_sum = read_data[3 + analyzed_data.data_length];
 
+    printf("\n");
     printf("send_from : 0x%02x\n", analyzed_data.send_from);
     printf("send_to : 0x%02x\n", analyzed_data.send_to);
     printf("data_length : 0x%04x\n", analyzed_data.data_length);

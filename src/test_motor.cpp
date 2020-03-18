@@ -82,8 +82,10 @@ bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_
                 motorL.offsetEncoder();
                 break;
 
-                case NidecMotor::Command::spinMotor_:
-                motorL.spinMotor((int)req.data);
+                //case NidecMotor::Command::spinMotor_:
+                //motorL.spinMotor((int)req.data);
+                case NidecMotor::Command::rollBySpeed_:
+                motorL.rollBySpeed((int)req.data);
                 break;
 
                 default:
@@ -177,9 +179,9 @@ int main(int argc, char **argv){
             NidecMotor::MotorResponse response = motorL.readResponse();
             twin_crawler_controller::motor_response topic_response;
             topic_response.id_motor = 2;
-            topic_response.command = response.ack & 0x3f;
             topic_response.result = response.result;
             topic_response.result_message = response.result_message;
+            topic_response.command = response.command;
             topic_response.ack = response.ack;
             topic_response.ack_message = response.ack_message;
             topic_response.data = response.data;

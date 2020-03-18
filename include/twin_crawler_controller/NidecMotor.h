@@ -10,6 +10,7 @@ class NidecMotor{
 
     struct MotorResponse{
         uint8_t *raw_data;
+        int command;
         bool result;
         std::string result_message;
         uint8_t ack;
@@ -43,7 +44,8 @@ class NidecMotor{
         writeControlMode_,
         offsetEncoder_,
 
-        spinMotor_
+        //spinMotor_
+        rollBySpeed_
     };
 
     /*
@@ -80,8 +82,9 @@ class NidecMotor{
     void writeControlMode(ControlMode mode);
     void offsetEncoder();
 
-    //速度指令モードの確認
-    void spinMotor(int rpm);
+    //速度制御
+    //void spinMotor(int rpm);
+    void rollBySpeed(int rpm);
 
     private:
     NidecMotor *motor;
@@ -89,6 +92,7 @@ class NidecMotor{
     uint8_t read_buf[128], analyze_buf[128];
     int read_buf_index;
 
+    int new_command;
     uint8_t new_operation_command;
     uint16_t new_attribute_command;
 
@@ -117,7 +121,7 @@ class NidecMotor{
     void writeData(int data_length, uint8_t operation_command, uint16_t attribute_command = 0, uint8_t *data = 0);
     void readData();
     //struct AnalyzedData analyzeReadData(uint8_t *read_data);
-    void analyzeReadData(uint8_t *read_data);
+    void analyzeReadData(uint8_t *read_data, int length);
     //void getDataData();
     //void getAck();
 };
