@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(twin_crawler_controller)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -74,5 +74,5 @@ include_directories(
 
 add_library(nidec_motor include/twin_crawler_controller/NidecMotor.cpp)
 
-add_executable(test src/test.cpp)
-target_link_libraries(test ${catkin_LIBRARIES} nidec_motor)
+add_executable(test_motor src/test_motor.cpp)
+target_link_libraries(test_motor ${catkin_LIBRARIES} nidec_motor)
