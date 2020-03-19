@@ -159,7 +159,7 @@ int openSerial(const char *device_name){
 
 int main(int argc, char **argv){
     
-    ros::init(argc, argv, "test_motor");
+    ros::init(argc, argv, "twin_motor_driver");
     ros::NodeHandle nh;
     
     bool serial_error = false;

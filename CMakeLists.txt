@@ -76,3 +76,6 @@ add_library(nidec_motor include/twin_crawler_controller/NidecMotor.cpp)
 
 add_executable(twin_motor_driver src/twin_motor_driver.cpp)
 target_link_libraries(twin_motor_driver ${catkin_LIBRARIES} nidec_motor)
+
+add_executable(vehicle_controller src/vehicle_controller.cpp)
+target_link_libraries(vehicle_controller ${catkin_LIBRARIES} nidec_motor)
