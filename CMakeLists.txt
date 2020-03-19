@@ -74,5 +74,5 @@ include_directories(
 
 add_library(nidec_motor include/twin_crawler_controller/NidecMotor.cpp)
 
-add_executable(test_motor src/test_motor.cpp)
-target_link_libraries(test_motor ${catkin_LIBRARIES} nidec_motor)
+add_executable(twin_motor_driver src/twin_motor_driver.cpp)
+target_link_libraries(twin_motor_driver ${catkin_LIBRARIES} nidec_motor)
