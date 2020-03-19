@@ -1,6 +1,8 @@
 #include "ros/ros.h"
 #include "twin_crawler_controller/NidecMotor.h"
 
+#include <signal.h>
+
 #include "linux/serial.h"
 #include "sys/ioctl.h"
 
@@ -20,6 +22,11 @@
 
 const bool use_motor_left = true;
 const bool use_motor_right = true;
+
+bool error_handler = false;
+void mySigintHandler(int sig){
+    error_handler = true;
+}
 
 bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_crawler_controller::motor_request::Response &res, NidecMotor *motor_left, NidecMotor *motor_right){
     NidecMotor *motor;
@@ -190,6 +197,8 @@ int main(int argc, char **argv){
         return 1;
     }
 
+    nh.setParam("serial_port_open", true);
+
     NidecMotor motor_left(fd1, 1, 2);
     NidecMotor motor_right(fd2, 1, 3);
 
@@ -238,14 +247,26 @@ int main(int argc, char **argv){
             }
         }
 
+        signal(SIGINT, mySigintHandler);
+        if(error_handler){
+            close(fd1);
+            close(fd2);
+            nh.setParam("serial_port_open", false);
+            ROS_INFO("Serial port closed");
+
+            ros::shutdown();
+        }
+
         ros::spinOnce();
         //loop_rate.sleep();
     }
 
+    /*
     close(fd1);
     close(fd2);
     //ROS_INFO("Serial port closed");
     printf("Serial port closed\n");
+    */
 
     return 0;
 }

@@ -69,7 +69,7 @@ int main(int argc, char **argv){
     ros::init(argc, argv, "vehicle_controller");
     ros::NodeHandle nh;
 
-    ROS_INFO("Start");
+    ROS_INFO("Node Start");
 
     ros::Rate loop_rate(5);
 
@@ -78,7 +78,20 @@ int main(int argc, char **argv){
 
     ros::Subscriber cmd_vdl_subscriber = nh.subscribe<geometry_msgs::Twist>("cmd_vel", 1000, boost::bind(&callback_cmd_vel, _1, &motor_request_client));
 
+    bool serial_port_open;
+    while(!serial_port_open && ros::ok()){
+        nh.getParam("serial_port_open", serial_port_open);
+        if(!serial_port_open){
+            ROS_ERROR("Serial port is not opened...");
+            sleep(1);
+        }
+    }
+    if(!ros::ok()){
+        return 1;
+    }
+
     twin_crawler_controller::motor_request req;
+    ROS_INFO("Motor Mode Change : Release");
     req.request.command = NidecMotor::Command::writeControlMode_;
     req.request.data = NidecMotor::ControlMode::Release;
     req.request.id_motor = 2;
@@ -87,26 +100,24 @@ int main(int argc, char **argv){
     motor_request_client.call(req);
     sleep(1);
 
+    ROS_INFO("Motor Encoder Offset...");
     req.request.command = NidecMotor::Command::offsetEncoder_;
     req.request.id_motor = 2;
     motor_request_client.call(req);
     req.request.id_motor = 3;
     motor_request_client.call(req);
-
-    ROS_INFO("Motor Encoder Offset...");
-    //ros::Rate wait_rate(0.1);
-    //wait_rate.sleep();
     sleep(10);
-    ROS_INFO("Finish");
 
+    ROS_INFO("Motor Mode Change : Speed");
     req.request.command = NidecMotor::Command::writeControlMode_;
     req.request.data = NidecMotor::ControlMode::Speed;
     req.request.id_motor = 2;
     motor_request_client.call(req);
     req.request.id_motor = 3;
     motor_request_client.call(req);
-    ROS_INFO("Motor Mode Change : Speed");
     sleep(1);
+
+    ROS_INFO("LOOP START !!");
 
     while(ros::ok()){
         //ROS_INFO("loop");
@@ -123,16 +134,14 @@ int main(int argc, char **argv){
 
         signal(SIGINT, mySigintHandler);
         if(error_handler){
-            ROS_INFO("Motor Stop");
             sleep(1);
+            ROS_INFO("Motor Stop");
             req.request.command = NidecMotor::Command::stop_;
             req.request.id_motor = 2;
             motor_request_client.call(req);
-            ROS_INFO("Motor L Stop");
             req.request.id_motor = 3;
             motor_request_client.call(req);
-            ROS_INFO("Motor R Stop");
-
+            
             ros::shutdown();
         }
 
