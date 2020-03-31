@@ -1,6 +1,6 @@
 uint8 id_motor
 int32 command
-int64 data
+int32 data
 ---
 uint8 result
 string result_message

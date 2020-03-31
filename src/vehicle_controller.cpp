@@ -16,22 +16,11 @@
 bool error_handler = false;
 void mySigintHandler(int sig){
     error_handler = true;
-    /*
-    ROS_INFO("Motor Stop");
-    twin_crawler_controller::motor_request req;
-    req.request.command = NidecMotor::Command::stop_;
-    req.request.id_motor = 2;
-    motor_request_client->call(req);
-    req.request.id_motor = 3;
-    motor_request_client->call(req);
-
-    ros::shutdown();
-    */
 }
 
 void callback_cmd_vel(const geometry_msgs::Twist::ConstPtr &msg, ros::ServiceClient *motor_request_client){
-    ROS_INFO("cmd_vel : Linear [%-7.4f, %-7.4f, %-7.4f]", msg->linear.x, msg->linear.y, msg->linear.z);
-    ROS_INFO("cmd_vel : Angular[%-7.4f, %-7.4f, %-7.4f]", msg->angular.x, msg->angular.y, msg->angular.z);
+    //ROS_INFO("cmd_vel : Linear [%-7.4f, %-7.4f, %-7.4f]", msg->linear.x, msg->linear.y, msg->linear.z);
+    //ROS_INFO("cmd_vel : Angular[%-7.4f, %-7.4f, %-7.4f]", msg->angular.x, msg->angular.y, msg->angular.z);
 
     int left_speed = msg->linear.x * 3000 * 0.5;
     int right_speed = msg->linear.x * -3000 * 0.5;
@@ -45,7 +34,7 @@ void callback_cmd_vel(const geometry_msgs::Twist::ConstPtr &msg, ros::ServiceCli
         right_speed += msg->angular.z * -1 * -3000 * 0.5;
     }
 
-    ROS_INFO("Motor Roll Speed [rpm] : %d, %d", left_speed, right_speed);
+    //ROS_INFO("Motor Roll Speed [rpm] : %d, %d", left_speed, right_speed);
 
     twin_crawler_controller::motor_request req;
     req.request.id_motor = 2;
@@ -60,8 +49,60 @@ void callback_cmd_vel(const geometry_msgs::Twist::ConstPtr &msg, ros::ServiceCli
 }
 
 void callback_motor_response(const twin_crawler_controller::motor_response &msg){
-    ROS_INFO("motor_response.result_message : %s", msg.result_message.c_str());
-    ROS_INFO("motor_response.data           : %ld", msg.data);
+    /*
+    std::string command_str;
+    switch((NidecMotor::Command)msg.command){
+        case NidecMotor::Command::run_:
+        command_str = "run";
+        break;
+
+        case NidecMotor::Command::stop_:
+        command_str = "stop";
+        break;
+
+        case NidecMotor::Command::emmergencyStop_:
+        command_str = "emmergencyStop";
+        break;
+
+        case NidecMotor::Command::breakCommand_:
+        command_str = "breakCommand";
+        break;
+
+        case NidecMotor::Command::servoOn_:
+        command_str = "servoOn";
+        break;
+
+        case NidecMotor::Command::servoOff_:
+        command_str = "servoOff";
+        break;
+
+        case NidecMotor::Command::getErrorInfo_:
+        command_str = "getErrorInfo";
+        break;
+
+        case NidecMotor::Command::resetError_:
+        command_str = "resetError";
+        break;
+
+        case NidecMotor::Command::checkConnection_:
+        command_str = "checkConnection";
+        break;
+
+        case NidecMotor::Command::readDeviceID_:
+        command_str = "readDeviceID";
+        break;
+
+        case NidecMotor::Command::readControlMode_:
+        command_str = "readControlMode";
+        break;
+    }
+    */
+    ROS_INFO("motor_response.id_motor : %d", msg.id_motor);
+    ROS_INFO("motor_response.command  : %s", msg.command_str.c_str());
+    ROS_INFO("motor_response.data     : %d", msg.data);
+    //ROS_INFO("motor_response.result_message : %s", msg.result_message.c_str());
+    ROS_INFO("motor_response.message  : %s", msg.message.c_str());
+    printf("\n");
 }
 
 int main(int argc, char **argv){
@@ -71,7 +112,7 @@ int main(int argc, char **argv){
 
     ROS_INFO("Node Start");
 
-    ros::Rate loop_rate(5);
+    ros::Rate loop_rate(10);
 
     ros::Subscriber motor_response_subscriber = nh.subscribe("motor_response", 100, callback_motor_response);
     ros::ServiceClient motor_request_client = nh.serviceClient<twin_crawler_controller::motor_request>("motor_request");
@@ -99,14 +140,35 @@ int main(int argc, char **argv){
     req.request.id_motor = 3;
     motor_request_client.call(req);
     sleep(1);
+    ros::spinOnce();
 
-    ROS_INFO("Motor Encoder Offset...");
+    ROS_INFO("Reset Error");
+    req.request.command = NidecMotor::Command::resetError_;
+    req.request.id_motor = 2;
+    motor_request_client.call(req);
+    req.request.id_motor = 3;
+    motor_request_client.call(req);
+    sleep(1);
+    ros::spinOnce();
+
+    ROS_INFO("Motor Encoder Offset... (please wait 15 sec)");
     req.request.command = NidecMotor::Command::offsetEncoder_;
     req.request.id_motor = 2;
     motor_request_client.call(req);
     req.request.id_motor = 3;
     motor_request_client.call(req);
-    sleep(10);
+    sleep(15);
+    ros::spinOnce();
+
+    ROS_INFO("Write Motor Position : 0");
+    req.request.command = NidecMotor::Command::writePosition_;
+    req.request.data = 0;
+    req.request.id_motor = 2;
+    motor_request_client.call(req);
+    req.request.id_motor = 3;
+    motor_request_client.call(req);
+    sleep(1);
+    ros::spinOnce();
 
     ROS_INFO("Motor Mode Change : Speed");
     req.request.command = NidecMotor::Command::writeControlMode_;
@@ -116,6 +178,7 @@ int main(int argc, char **argv){
     req.request.id_motor = 3;
     motor_request_client.call(req);
     sleep(1);
+    ros::spinOnce();
 
     ROS_INFO("LOOP START !!");
 
@@ -123,17 +186,24 @@ int main(int argc, char **argv){
         //ROS_INFO("loop");
 
         //twin_crawler_controller::motor_request req;
-        req.request.id_motor = 2;
         req.request.command = NidecMotor::Command::readSpeed_;
+        req.request.id_motor = 2;
+        /*
         if(motor_request_client.call(req)){
             ROS_INFO("motor_request.result_message : %s", req.response.result_message.c_str());
         }
         else{
             ROS_WARN("motor_request was not returned");
         }
+        */
+        motor_request_client.call(req);
+        req.request.id_motor = 3;
+        motor_request_client.call(req);
 
         signal(SIGINT, mySigintHandler);
         if(error_handler){
+            ROS_INFO("Ctrl + C received");
+
             sleep(1);
             ROS_INFO("Motor Stop");
             req.request.command = NidecMotor::Command::stop_;

@@ -65,64 +65,176 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
 
     response.raw_data = analyzed_data.raw_data;
 
+    // 自動で送信されたエラー情報を受け取り
     if((analyzed_data.operation_command & 0x3f) == 0x11){
-        response.command = motor->new_command;
+        //response.command = motor->new_command;
+        response.command = getErrorInfo_;
+        response.command_str = "Error Information";
+        /*
         response.result = false;
         response.result_message = "Error Information";
         response.ack = analyzed_data.operation_command;
-
+        */
+        response.data = 0;
+        
         char nak_code[20];
         int nak_code_int = 0;
         for(int i = 0; i < analyzed_data.data_length - 5; i++){
             nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
         }
         sprintf(nak_code, "0x%08x", nak_code_int);
-        response.ack_message = "Error Code : " + std::string(nak_code);
+        //response.ack_message = "Error Code : " + std::string(nak_code);
+        response.message = "Error Code : " + std::string(nak_code);
 
-        response.data = 0;
         return response;
     }
 
+    // エラー情報読み込みコマンドの返答
     if((analyzed_data.operation_command & 0x3f) == 0x10){
-        response.command = motor->new_command;
+        //response.command = motor->new_command;
+        response.command = getErrorInfo_;
+        response.command_str = "Error Information";
+        /*
         response.result = true;
         response.result_message = "Error Information";
         response.ack = analyzed_data.operation_command;
-
+        */
+        
+        response.data = 0;
+        
         char nak_code[20];
         int nak_code_int = 0;
         for(int i = 0; i < analyzed_data.data_length - 5; i++){
             nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
         }
         sprintf(nak_code, "0x%08x", nak_code_int);
-        response.ack_message = "Error Code : " + std::string(nak_code);
+        //response.ack_message = "Error Code : " + std::string(nak_code);
+        response.message = "Error Code : " + std::string(nak_code);
 
-        response.data = 0;
         return response;
     }
 
-    response.result = true;
-    std::string error_message = "";
-    if((analyzed_data.operation_command & 0x3f) != motor->new_operation_command){
-        response.result = false;
-        error_message += "Returned Different Operation Command\n";
-    }
-    if(analyzed_data.data_length > 3 && analyzed_data.attribute_command != motor->new_attribute_command){
-        response.result = false;
-        error_message += "Returned Diffetent Attribute Command\n";
-    }
-    if(analyzed_data.operation_command & 0xc0 != 0xc0 && analyzed_data.operation_command & 0xc0 != 0x80){
-        response.result = false;
-        error_message += "Returned NAK\n";
+    // 通常のフロー
+    // データをセット
+    response.data = 0;
+    for(int i = 0; i < analyzed_data.data_length - 5; i++){
+        response.data = response.data << 8 | analyzed_data.data[i];
     }
 
+    // コマンドをセット＆コマンドごとの対応
+    if((analyzed_data.operation_command & 0x3f) == 0x03){
+        response.command = run_;
+        response.command_str = "run";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x08){
+        response.command = stop_;
+        response.command_str = "stop";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x09){
+        response.command = emmergencyStop_;
+        response.command_str = "emmergencyStop";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x0a){
+        response.command = breakCommand_;
+        response.command_str = "breakCommand";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x0e){
+        response.command = servoOn_;
+        response.command_str = "servoOn";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x0f){
+        response.command = servoOff_;
+        response.command_str = "servoOff";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x10){
+        response.command = getErrorInfo_;
+        response.command_str = "getErrorInfo";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x12){
+        response.command = resetError_;
+        response.command_str = "resetError";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x22){
+        response.command = checkConnection_;
+        response.command_str = "checkConnection";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x01 && analyzed_data.attribute_command == 0x0004){
+        response.command = readDeviceID_;
+        response.command_str = "readDeviceID";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x01 && analyzed_data.attribute_command == 0x0001){
+        response.command = readControlMode_;
+        response.command_str = "readControlMode";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x05 && analyzed_data.attribute_command == 0x0001){
+        response.command = writeControlMode_;
+        response.command_str = "writeControlMode";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x01 && analyzed_data.attribute_command == 0x0011){
+        response.command = readPosition_;
+        response.command_str = "readPosition";
+        response.data = response.data >> 7;
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x05 && analyzed_data.attribute_command == 0x001d){
+        response.command = writePosition_;
+        response.command_str = "writePosition";
+        response.data = response.data >> 7;
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x05 && analyzed_data.attribute_command == 0x001f){
+        response.command = offsetEncoder_;
+        response.command_str = "offsetEncoder";
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x05 && analyzed_data.attribute_command == 0x0022){
+        response.command = rollBySpeed_;
+        response.command_str = "rollBySpeed";
+        response.data = response.data >> 12;
+    }
+    else if((analyzed_data.operation_command & 0x3f) == 0x01 && analyzed_data.attribute_command == 0x0021){
+        response.command = readSpeed_;
+        response.command_str = "readSpeed";
+        response.data = response.data >> 12;
+    }
+    else{
+        response.command = NotDefined_;
+        response.command_str = "Not Defined";
+    }
+
+    // エラーメッセージなどの対応
+    //response.result = true;
+    bool success = true;
+    std::string error_message = "";
+    if((analyzed_data.operation_command & 0x3f) != motor->new_operation_command){
+        //response.result = false;
+        success = false;
+        error_message += "Returned Different Operation Command. ";
+    }
+    if(analyzed_data.data_length > 3 && analyzed_data.attribute_command != motor->new_attribute_command){
+        //response.result = false;
+        success = false;
+        error_message += "Returned Different Attribute Command. ";
+    }
+    if(analyzed_data.operation_command & 0xc0 != 0xc0 && analyzed_data.operation_command & 0xc0 != 0x80){
+        //response.result = false;
+        success = false;
+        error_message += "Returned NAK. ";
+    }
+
+    /*
     if(response.result){
         response.result_message = "Success";
     }
     else{
         response.result_message = error_message;
     }
+    */
+   if(success){
+       response.message = "Success.";
+   }
+   else{
+       response.message = error_message;
+   }
 
+    /*
     response.ack = analyzed_data.operation_command;
     if((analyzed_data.operation_command & 0xc0) == 0xc0){
         response.ack_message = "Complete";
@@ -139,21 +251,104 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
         sprintf(nak_code, "0x%x", nak_code_int);
         response.ack_message = "NAK : " + std::string(nak_code);
     }
+    */
 
+    /*
     response.data = 0;
     for(int i = 0; i < analyzed_data.data_length - 5; i++){
         response.data = response.data << 8 | analyzed_data.data[i];
     }
+    */
 
+    //response.command = motor->new_command;
+    /*
+    switch(motor->new_command){
+        case run_:
+        response.command = "run";
+        break;
+
+        case stop_:
+        response.command = "stop";
+        break;
+
+        case emmergencyStop_:
+        response.command = "emmergencyStop";
+        break;
+
+        case breakCommand_:
+        response.command = "breakCommand";
+        break;
+
+        case servoOn_:
+        response.command = "servoOn";
+        break;
+
+        case servoOff_:
+        response.command = "servoOff";
+        break;
+
+        case getErrorInfo_:
+        response.command = "getErrorInfo";
+        break;
+
+        case resetError_:
+        response.command = "resetError";
+        break;
+
+        case checkConnection_:
+        response.command = "checkConnection";
+        break;
+
+        case readDeviceID_:
+        response.command = "readDeviceID";
+        break;
+
+        case readControlMode_:
+        response.command = "readControlMode";
+        break;
+
+        case writeControlMode_:
+        response.command = "writeControlMode";
+        break;
+
+        case readPosition_:
+        response.command = "readPosition";
+        break;
+
+        case writePosition_:
+        response.command = "writePosition";
+        break;
+
+        case offsetEncoder_:
+        response.command = "offsetEncoder";
+        break;
+
+        case rollBySpeed_:
+        response.command = "rollBySpeed";
+        break;
+
+        case readSpeed_:
+        response.command = "readSpeed";
+        break;
+        
+        default:
+        response.command = "Not Defined";
+        break;
+    }
+    */
+
+    /*
     if(response.result){
-        response.command = motor->new_command;
-
         if(response.ack_message == "Complete" || response.ack_message == "ACK"){
-            if(motor->new_attribute_command == 0x0022 || motor->new_attribute_command == 0x0021){
+            if(motor->new_attribute_command == 0x0011 || motor->new_attribute_command == 0x001d){
+                response.data = (int)response.data >> 7;
+            }
+            else if(motor->new_attribute_command == 0x0022 || motor->new_attribute_command == 0x0021){
                 response.data = (int)response.data >> 12;
             }
         }
     }
+    */
 
     return response;
 }
@@ -246,6 +441,28 @@ void NidecMotor::writeControlMode(ControlMode mode){
         return;
     }
     writeData(5 + 1, motor->new_operation_command, motor->new_attribute_command, &data);
+}
+
+void NidecMotor::readPosition(){
+    motor->new_command = readPosition_;
+    motor->new_operation_command = 0x01;
+    motor->new_attribute_command = 0x0011;
+    writeData(5, motor->new_operation_command, motor->new_attribute_command);
+}
+
+void NidecMotor::writePosition(int pos){
+    motor->new_command = writePosition_;
+    motor->new_operation_command = 0x05;
+    motor->new_attribute_command = 0x001d;
+
+    pos = pos << 7;
+    uint8_t data[4];
+    data[0] = pos >> 24;
+    data[1] = pos >> 16;
+    data[2] = pos >> 8;
+    data[3] = pos >> 0;
+
+    writeData(5 + 4, motor->new_operation_command, motor->new_attribute_command, data);
 }
 
 void NidecMotor::offsetEncoder(){

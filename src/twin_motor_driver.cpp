@@ -106,12 +106,21 @@ bool requestCallback(twin_crawler_controller::motor_request::Request &req, twin_
         motor->writeControlMode((NidecMotor::ControlMode)req.data);
         break;
 
+        case NidecMotor::Command::readPosition_:
+        motor->readPosition();
+        break;
+
+        case NidecMotor::Command::writePosition_:
+        motor->writePosition(req.data);
+        break;
+
         case NidecMotor::Command::offsetEncoder_:
         motor->offsetEncoder();
         break;
 
         case NidecMotor::Command::rollBySpeed_:
-        motor->rollBySpeed((int)req.data);
+        //motor->rollBySpeed((int)req.data);
+        motor->rollBySpeed(req.data);
         break;
 
         case NidecMotor::Command::readSpeed_:
@@ -215,12 +224,18 @@ int main(int argc, char **argv){
                 NidecMotor::MotorResponse response = motor_left.readResponse();
                 twin_crawler_controller::motor_response topic_response;
                 topic_response.id_motor = 2;
+                /*
                 topic_response.result = response.result;
                 topic_response.result_message = response.result_message;
                 topic_response.command = response.command;
                 topic_response.ack = response.ack;
                 topic_response.ack_message = response.ack_message;
                 topic_response.data = response.data;
+                */
+                topic_response.command = response.command;
+                topic_response.command_str = response.command_str;
+                topic_response.data = response.data;
+                topic_response.message = response.message;
                 motor_response_publisher.publish(topic_response);
             }
             else{
@@ -234,12 +249,18 @@ int main(int argc, char **argv){
                 NidecMotor::MotorResponse response = motor_right.readResponse();
                 twin_crawler_controller::motor_response topic_response;
                 topic_response.id_motor = 3;
+                /*
                 topic_response.result = response.result;
                 topic_response.result_message = response.result_message;
                 topic_response.command = response.command;
                 topic_response.ack = response.ack;
                 topic_response.ack_message = response.ack_message;
                 topic_response.data = response.data;
+                */
+                topic_response.command = response.command;
+                topic_response.command_str = response.command_str;
+                topic_response.data = response.data;
+                topic_response.message = response.message;
                 motor_response_publisher.publish(topic_response);
             }
             else{

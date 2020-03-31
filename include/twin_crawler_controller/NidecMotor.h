@@ -10,12 +10,10 @@ class NidecMotor{
 
     struct MotorResponse{
         uint8_t *raw_data;
-        int command;
-        bool result;
-        std::string result_message;
-        uint8_t ack;
-        std::string ack_message;
-        long data;
+        uint32_t command;
+        std::string command_str;
+        int data;
+        std::string message;
     };
 
     enum ControlMode{
@@ -42,10 +40,16 @@ class NidecMotor{
         readDeviceID_,
         readControlMode_,
         writeControlMode_,
+
+        readPosition_,
+        writePosition_,
+
         offsetEncoder_,
 
         rollBySpeed_,
-        readSpeed_
+        readSpeed_,
+
+        NotDefined_
     };
 
     void run();
@@ -61,6 +65,10 @@ class NidecMotor{
     void readDeviceID();
     void readControlMode();
     void writeControlMode(ControlMode mode);
+
+    void readPosition();
+    void writePosition(int pos);
+
     void offsetEncoder();
 
     //速度制御
