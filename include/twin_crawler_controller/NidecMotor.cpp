@@ -67,14 +67,8 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
 
     // 自動で送信されたエラー情報を受け取り
     if((analyzed_data.operation_command & 0x3f) == 0x11){
-        //response.command = motor->new_command;
         response.command = getErrorInfo_;
         response.command_str = "Error Information";
-        /*
-        response.result = false;
-        response.result_message = "Error Information";
-        response.ack = analyzed_data.operation_command;
-        */
         response.data = 0;
         
         char nak_code[20];
@@ -83,7 +77,6 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
             nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
         }
         sprintf(nak_code, "0x%08x", nak_code_int);
-        //response.ack_message = "Error Code : " + std::string(nak_code);
         response.message = "Error Code : " + std::string(nak_code);
 
         return response;
@@ -91,14 +84,8 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
 
     // エラー情報読み込みコマンドの返答
     if((analyzed_data.operation_command & 0x3f) == 0x10){
-        //response.command = motor->new_command;
         response.command = getErrorInfo_;
         response.command_str = "Error Information";
-        /*
-        response.result = true;
-        response.result_message = "Error Information";
-        response.ack = analyzed_data.operation_command;
-        */
         
         response.data = 0;
         
@@ -108,7 +95,6 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
             nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
         }
         sprintf(nak_code, "0x%08x", nak_code_int);
-        //response.ack_message = "Error Code : " + std::string(nak_code);
         response.message = "Error Code : " + std::string(nak_code);
 
         return response;
@@ -200,155 +186,27 @@ struct NidecMotor::MotorResponse NidecMotor::readResponse(){
     }
 
     // エラーメッセージなどの対応
-    //response.result = true;
     bool success = true;
     std::string error_message = "";
     if((analyzed_data.operation_command & 0x3f) != motor->new_operation_command){
-        //response.result = false;
         success = false;
         error_message += "Returned Different Operation Command. ";
     }
     if(analyzed_data.data_length > 3 && analyzed_data.attribute_command != motor->new_attribute_command){
-        //response.result = false;
         success = false;
         error_message += "Returned Different Attribute Command. ";
     }
     if(analyzed_data.operation_command & 0xc0 != 0xc0 && analyzed_data.operation_command & 0xc0 != 0x80){
-        //response.result = false;
         success = false;
         error_message += "Returned NAK. ";
     }
 
-    /*
-    if(response.result){
-        response.result_message = "Success";
-    }
-    else{
-        response.result_message = error_message;
-    }
-    */
    if(success){
        response.message = "Success.";
    }
    else{
        response.message = error_message;
    }
-
-    /*
-    response.ack = analyzed_data.operation_command;
-    if((analyzed_data.operation_command & 0xc0) == 0xc0){
-        response.ack_message = "Complete";
-    }
-    else if((analyzed_data.operation_command & 0xc0) == 0x80){
-        response.ack_message = "ACK";
-    }
-    else{
-        char nak_code[20];
-        int nak_code_int = 0;
-        for(int i = 0; i < analyzed_data.data_length - 5; i++){
-            nak_code_int = nak_code_int << 8 | analyzed_data.data[i];
-        }
-        sprintf(nak_code, "0x%x", nak_code_int);
-        response.ack_message = "NAK : " + std::string(nak_code);
-    }
-    */
-
-    /*
-    response.data = 0;
-    for(int i = 0; i < analyzed_data.data_length - 5; i++){
-        response.data = response.data << 8 | analyzed_data.data[i];
-    }
-    */
-
-    //response.command = motor->new_command;
-    /*
-    switch(motor->new_command){
-        case run_:
-        response.command = "run";
-        break;
-
-        case stop_:
-        response.command = "stop";
-        break;
-
-        case emmergencyStop_:
-        response.command = "emmergencyStop";
-        break;
-
-        case breakCommand_:
-        response.command = "breakCommand";
-        break;
-
-        case servoOn_:
-        response.command = "servoOn";
-        break;
-
-        case servoOff_:
-        response.command = "servoOff";
-        break;
-
-        case getErrorInfo_:
-        response.command = "getErrorInfo";
-        break;
-
-        case resetError_:
-        response.command = "resetError";
-        break;
-
-        case checkConnection_:
-        response.command = "checkConnection";
-        break;
-
-        case readDeviceID_:
-        response.command = "readDeviceID";
-        break;
-
-        case readControlMode_:
-        response.command = "readControlMode";
-        break;
-
-        case writeControlMode_:
-        response.command = "writeControlMode";
-        break;
-
-        case readPosition_:
-        response.command = "readPosition";
-        break;
-
-        case writePosition_:
-        response.command = "writePosition";
-        break;
-
-        case offsetEncoder_:
-        response.command = "offsetEncoder";
-        break;
-
-        case rollBySpeed_:
-        response.command = "rollBySpeed";
-        break;
-
-        case readSpeed_:
-        response.command = "readSpeed";
-        break;
-        
-        default:
-        response.command = "Not Defined";
-        break;
-    }
-    */
-
-    /*
-    if(response.result){
-        if(response.ack_message == "Complete" || response.ack_message == "ACK"){
-            if(motor->new_attribute_command == 0x0011 || motor->new_attribute_command == 0x001d){
-                response.data = (int)response.data >> 7;
-            }
-            else if(motor->new_attribute_command == 0x0022 || motor->new_attribute_command == 0x0021){
-                response.data = (int)response.data >> 12;
-            }
-        }
-    }
-    */
 
     return response;
 }

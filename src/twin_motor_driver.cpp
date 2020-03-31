@@ -224,14 +224,6 @@ int main(int argc, char **argv){
                 NidecMotor::MotorResponse response = motor_left.readResponse();
                 twin_crawler_controller::motor_response topic_response;
                 topic_response.id_motor = 2;
-                /*
-                topic_response.result = response.result;
-                topic_response.result_message = response.result_message;
-                topic_response.command = response.command;
-                topic_response.ack = response.ack;
-                topic_response.ack_message = response.ack_message;
-                topic_response.data = response.data;
-                */
                 topic_response.command = response.command;
                 topic_response.command_str = response.command_str;
                 topic_response.data = response.data;
@@ -249,14 +241,6 @@ int main(int argc, char **argv){
                 NidecMotor::MotorResponse response = motor_right.readResponse();
                 twin_crawler_controller::motor_response topic_response;
                 topic_response.id_motor = 3;
-                /*
-                topic_response.result = response.result;
-                topic_response.result_message = response.result_message;
-                topic_response.command = response.command;
-                topic_response.ack = response.ack;
-                topic_response.ack_message = response.ack_message;
-                topic_response.data = response.data;
-                */
                 topic_response.command = response.command;
                 topic_response.command_str = response.command_str;
                 topic_response.data = response.data;
@@ -281,13 +265,6 @@ int main(int argc, char **argv){
         ros::spinOnce();
         //loop_rate.sleep();
     }
-
-    /*
-    close(fd1);
-    close(fd2);
-    //ROS_INFO("Serial port closed");
-    printf("Serial port closed\n");
-    */
 
     return 0;
 }
