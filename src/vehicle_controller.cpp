@@ -1,32 +1,56 @@
-#include "ros/ros.h"
-#include "twin_crawler_controller/NidecMotor.h"
+/************************************************************/
+/*                                                          */
+/* http://wiki.ros.org/navigation/Tutorials/RobotSetup/Odom */
+/*                                                          */
+/************************************************************/
+
+
+#include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/Vector3.h>
+#include <nav_msgs/Odometry.h>
+#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 #include <boost/bind.hpp>
-
 #include <signal.h>
 
-#include "geometry_msgs/Twist.h"
-#include "geometry_msgs/TwistStamped.h"
-#include "geometry_msgs/Vector3.h"
-#include "nav_msgs/Odometry.h"
-
+#include "twin_crawler_controller/NidecMotor.h"
 #include "twin_crawler_controller/motor_response.h"
 #include "twin_crawler_controller/motor_request.h"
 
 const int motor_left_id = 2;
 const int motor_right_id = 3;
 
-const float power_limiter = 1; // 0(停止) 〜 1(最高)
-const float joystick_limiter = 1 / sqrt(2);
-const float motor_speed_max = 3000;
+//const double power_limiter = 1; // 0(停止) ? 1(最高)
+//const double joystick_limiter = 1 / sqrt(2);
+const double motor_speed_max = 3000;
 
-const float linear_angular_ratio = 0.8;
+//const double linear_angular_ratio = 0.8;
 
-const float gear_ratio = 0.01; // ギア比 = 100：1
-const float sprocket_pin = 24;
-const float sprocket_diameter = 0.295; // [m]
-const float belt_pin = 40;
-const float belt_length = 1.7; // [m]
+const double gear_ratio = 0.01; // ギア比 = 100：1
+const double sprocket_pin = 24;
+const double sprocket_diameter = 0.295; // [m]
+const double belt_pin = 40;
+const double belt_length = 1.7; // [m]
+const double sprocket_offset = 0.012; // [m]
+const double wheel_distance = 0.60; // [m]
+const double init_yaw = 0;
+
+// x [deg/s] -> x * gear_ratio / 180.0 * M_PI [rad/s] 
+//#define CmdtoOmg(x) (double)(x) * (gear_ratio / 180.0 * M_PI)
+//#define OmgtoCmd(x) (int)   (x) / (gear_ratio / 180.0 * M_PI)
+//#define OmgtoVel(x) (x) * ((sprocket_diameter+sprocket_offset) / 2.0 * sprocket_pin / belt_pin * belt_length)
+//#define VeltoOmg(x) (x) / ((sprocket_diameter+sprocket_offset) / 2.0 * sprocket_pin / belt_pin * belt_length)
+
+// x [rpm]   -> x * gear_ratio / 60.0  * 2.0 * M_PI [rad/s] 
+#define CmdtoOmg(x) (double)(x) * (gear_ratio / 60.0 * 2.0 * M_PI)
+#define OmgtoCmd(x) (int)  ((x) / (gear_ratio / 60.0 * 2.0 * M_PI))
+#define OmgtoVel(x) (x) * ((sprocket_diameter+sprocket_offset) / 2.0) 
+#define VeltoOmg(x) (x) / ((sprocket_diameter+sprocket_offset) / 2.0) 
+#define CmdtoRad(x) (double)(x) * (gear_ratio * M_PI / 180.0)
+#define RadtoCmd(x) (int)  ((x) / (gear_ratio * M_PI / 180.0))
 
 bool error_handler = false;
 void mySigintHandler(int sig){
@@ -35,20 +59,27 @@ void mySigintHandler(int sig){
 
 class MotorStatus{
     public:
-    bool position_update = false;
-    float position = 0;
-    float position_old = 0;
+    bool update = false;
+    double position = 0;
+    double velocity = 0;
 };
 
 void callback_cmd_vel(const geometry_msgs::Twist::ConstPtr &msg, ros::ServiceClient *motor_request_client){
     //ROS_INFO("cmd_vel : Linear [%-7.4f, %-7.4f, %-7.4f]", msg->linear.x, msg->linear.y, msg->linear.z);
     //ROS_INFO("cmd_vel : Angular[%-7.4f, %-7.4f, %-7.4f]", msg->angular.x, msg->angular.y, msg->angular.z);
 
-    int left_speed = msg->linear.x * motor_speed_max * joystick_limiter * power_limiter;
-    int right_speed = msg->linear.x * motor_speed_max * joystick_limiter * power_limiter * -1;
+    //int left_speed = msg->linear.x * motor_speed_max * joystick_limiter * power_limiter;
+    //int right_speed = msg->linear.x * motor_speed_max * joystick_limiter * power_limiter * -1;
+    //left_speed += msg->angular.z * motor_speed_max * joystick_limiter * power_limiter;
+    //right_speed -= msg->angular.z * motor_speed_max * joystick_limiter * power_limiter * -1;
 
-    left_speed += msg->angular.z * motor_speed_max * joystick_limiter * power_limiter;
-    right_speed -= msg->angular.z * motor_speed_max * joystick_limiter * power_limiter * -1;
+    int left_speed  =  OmgtoCmd(VeltoOmg(msg->linear.x - wheel_distance * msg->angular.z / 2.0));
+    int right_speed = -OmgtoCmd(VeltoOmg(msg->linear.x + wheel_distance * msg->angular.z / 2.0));
+
+    if (left_speed  < -motor_speed_max) left_speed  = -motor_speed_max;
+    if (left_speed  >  motor_speed_max) left_speed  =  motor_speed_max;
+    if (right_speed < -motor_speed_max) right_speed = -motor_speed_max;
+    if (right_speed >  motor_speed_max) right_speed =  motor_speed_max;
 
     //ROS_INFO("Motor Roll Speed [rpm] : %d, %d", left_speed, right_speed);
 
@@ -65,24 +96,44 @@ void callback_cmd_vel(const geometry_msgs::Twist::ConstPtr &msg, ros::ServiceCli
 }
 
 void callback_motor_response(const twin_crawler_controller::motor_response::ConstPtr &msg, MotorStatus *motor_left_status, MotorStatus *motor_right_status){
-    ROS_INFO("motor_response.id_motor : %d", msg->id_motor);
-    ROS_INFO("motor_response.command  : %s", msg->command_str.c_str());
-    ROS_INFO("motor_response.data     : %d", msg->data);
-    ROS_INFO("motor_response.message  : %s", msg->message.c_str());
-    printf("\n");
+    //ROS_INFO("motor_response.id_motor : %d", msg->id_motor);
+    //ROS_INFO("motor_response.command  : %s", msg->command_str.c_str());
+    //ROS_INFO("motor_response.data     : %d", msg->data);
+    //ROS_INFO("motor_response.message  : %s", msg->message.c_str());
+    //printf("\n");
 
     if(msg->command == NidecMotor::Command::readPosition_){
         switch(msg->id_motor){
             case motor_left_id:
-            motor_left_status->position_update = true;
-            //motor_left_status->position = msg->data; //要変更
-            motor_left_status->position = msg->data * gear_ratio / 360 * M_PI * sprocket_diameter * sprocket_pin / belt_pin * belt_length;
+            motor_left_status->update = true;
+            motor_left_status->position  =  CmdtoRad((double)msg->data);
+            //printf("L %lf\n",motor_left_status->position*180.0/M_PI);
             break;
 
             case motor_right_id:
-            motor_right_status->position_update = true;
-            //motor_right_status->position = msg->data; //要変更
-            motor_right_status->position = msg->data * gear_ratio / 360 * M_PI * sprocket_diameter * sprocket_pin / belt_pin * belt_length * -1;
+            motor_right_status->update = true;
+            motor_right_status->position = -CmdtoRad((double)msg->data);
+            //printf("R %lf\n",motor_left_status->position*180.0/M_PI);
+            break;
+
+            default:
+            ROS_WARN("Unknown Motor ID");
+            break;
+        }
+    }
+
+    if(msg->command == NidecMotor::Command::readSpeed_){
+        switch(msg->id_motor){
+            case motor_left_id:
+            motor_left_status->update = true;
+            motor_left_status->velocity  =  OmgtoVel(CmdtoOmg((double)msg->data));
+            //printf("L %lf\n",motor_left_status->velocity);
+            break;
+
+            case motor_right_id:
+            motor_right_status->update = true;
+            motor_right_status->velocity = -OmgtoVel(CmdtoOmg((double)msg->data));
+            //printf("R %lf\n",motor_left_status->velocity);
             break;
 
             default:
@@ -99,16 +150,13 @@ int main(int argc, char **argv){
 
     ROS_INFO("Node Start");
 
-    ros::Rate loop_rate(10);
-
     MotorStatus motor_left_status;
     MotorStatus motor_right_status;
     ros::Subscriber motor_response_subscriber = nh.subscribe<twin_crawler_controller::motor_response>("motor_response", 100, boost::bind(&callback_motor_response, _1, &motor_left_status, &motor_right_status));
     ros::ServiceClient motor_request_client = nh.serviceClient<twin_crawler_controller::motor_request>("motor_request");
-
-    ros::Subscriber cmd_vdl_subscriber = nh.subscribe<geometry_msgs::Twist>("cmd_vel", 100, boost::bind(&callback_cmd_vel, _1, &motor_request_client));
-
-    ros::Publisher odometry_publisher = nh.advertise<nav_msgs::Odometry>("vehicle_odometry", 100);
+    ros::Subscriber cmd_vel_subscriber = nh.subscribe<geometry_msgs::Twist>("cmd_vel", 1, boost::bind(&callback_cmd_vel, _1, &motor_request_client));
+    ros::Publisher odom_pub = nh.advertise<nav_msgs::Odometry>("odom", 100);
+    tf2_ros::TransformBroadcaster odom_broadcaster;
 
     bool serial_port_open;
     while(!serial_port_open && ros::ok()){
@@ -136,7 +184,7 @@ int main(int argc, char **argv){
         req.request.id_motor = motor_right_id;
         motor_request_client.call(req);
         sleep(1);
-        ros::spinOnce();
+        //ros::spinOnce();
 
         ROS_INFO("Reset Error");
         req.request.command = NidecMotor::Command::resetError_;
@@ -145,7 +193,7 @@ int main(int argc, char **argv){
         req.request.id_motor = motor_right_id;
         motor_request_client.call(req);
         sleep(1);
-        ros::spinOnce();
+        //ros::spinOnce();
 
         ROS_INFO("Motor Encoder Offset... (please wait 15 sec)");
         req.request.command = NidecMotor::Command::offsetEncoder_;
@@ -154,7 +202,7 @@ int main(int argc, char **argv){
         req.request.id_motor = motor_right_id;
         motor_request_client.call(req);
         sleep(15);
-        ros::spinOnce();
+        //ros::spinOnce();
     }
 
     ROS_INFO("Write Motor Position : 0");
@@ -165,7 +213,7 @@ int main(int argc, char **argv){
     req.request.id_motor = motor_right_id;
     motor_request_client.call(req);
     sleep(1);
-    ros::spinOnce();
+    //ros::spinOnce();
 
     ROS_INFO("Motor Mode Change : Speed");
     req.request.command = NidecMotor::Command::writeControlMode_;
@@ -175,68 +223,111 @@ int main(int argc, char **argv){
     req.request.id_motor = motor_right_id;
     motor_request_client.call(req);
     sleep(1);
-    ros::spinOnce();
+    //ros::spinOnce();
 
     ROS_INFO("LOOP START !!");
 
-    nav_msgs::Odometry odometry;
+    double x = 0.0;
+    double y = 0.0;
+    double th = init_yaw;
+
+    double vx = 0.0;
+    double vy = 0.0;
+    double vth = 0.0;
+
+    ros::Time current_time, last_time;
+    current_time = ros::Time::now();
+    last_time = ros::Time::now();
+
+    ros::Rate r(100.0);
 
     while(ros::ok()){
         //ROS_INFO("loop");
 
+        ros::spinOnce(); 
+
         /*
-        req.request.command = NidecMotor::Command::readSpeed_;
-        req.request.id_motor = motor_left_id;
-        motor_request_client.call(req);
-        req.request.id_motor = motor_right_id;
-        motor_request_client.call(req);
-        */
-        
         req.request.command = NidecMotor::Command::readPosition_;
         req.request.id_motor = motor_left_id;
         motor_request_client.call(req);
         req.request.id_motor = motor_right_id;
         motor_request_client.call(req);
-        
-        if(motor_left_status.position_update && motor_right_status.position_update){
-            //要変更
-            /*
-            geometry_msgs::Twist odd_data;
-            odd_data.linear.x = motor_left_status.position;
-            odd_data.linear.y = motor_right_status.position;
-            odd_publisher.publish(odd_data);
-            */
-            
-            //odometry.twist.twist.linear.x = (motor_left_status.position - odometry.pose.pose.position.x) / (ros::Time::now() - odometry.header.stamp).toSec();
-            //odometry.twist.twist.linear.y = (motor_right_status.position - odometry.pose.pose.position.y) / (ros::Time::now() - odometry.header.stamp).toSec();
-            float time_difference = (ros::Time::now() - odometry.header.stamp).toSec();
-            float crawler_left_speed = (motor_left_status.position - motor_left_status.position_old) / time_difference;
-            float crawler_right_speed = (motor_right_status.position - motor_right_status.position_old) / time_difference;
-            //if(crawler_left_speed * crawler_right_speed > 0){
-            //}
-            if(abs(crawler_left_speed) < abs(crawler_right_speed)){
-                odometry.twist.twist.linear.x = crawler_left_speed;
-            }
-            else{
-                odometry.twist.twist.linear.x = crawler_right_speed;
-            }
+        */
 
-            odometry.twist.twist.angular.z = crawler_right_speed - crawler_left_speed;
+        req.request.command = NidecMotor::Command::readSpeed_;
+        req.request.id_motor = motor_left_id;
+        motor_request_client.call(req);
+        req.request.id_motor = motor_right_id;
+        motor_request_client.call(req);
 
-            //odometry.pose.pose.position.x = motor_left_status.position;
-            //odometry.pose.pose.position.y = motor_right_status.position;
-            odometry.pose.pose.position.x = odometry.pose.pose.position.x + odometry.twist.twist.linear.x * cos(odometry.twist.twist.angular.z) * time_difference;
-            odometry.pose.pose.position.y = odometry.pose.pose.position.y + odometry.twist.twist.linear.x * sin(odometry.twist.twist.angular.z) * time_difference;
+        if(motor_left_status.update && motor_right_status.update){
+            current_time = ros::Time::now();
 
-            odometry.pose.pose.orientation.z = odometry.pose.pose.orientation.z + odometry.twist.twist.angular.z * time_difference;
+            double vx = (motor_left_status.velocity + motor_right_status.velocity) / 2.0;
+            vth = (-motor_left_status.velocity + motor_right_status.velocity) / wheel_distance;
 
-            odometry.header.stamp = ros::Time::now();
-            odometry_publisher.publish(odometry);
+            double dt = (current_time - last_time).toSec();
+            double delta_x = vx * cos(th) * dt;
+            double delta_y = vx * sin(th) * dt;
+            double delta_th = vth * dt;
 
-            motor_left_status.position_update = false;
-            motor_right_status.position_update = false;
-            motor_left_status.position_old = motor_left_status.position;
-            motor_right_status.position_old = motor_right_status.position;
+            x += delta_x;
+            y += delta_y;
+            th += delta_th;
+
+            tf2::Quaternion quat_tf;
+            quat_tf.setRPY(0.0, 0.0, th);
+            geometry_msgs::Quaternion odom_quat;
+            tf2::convert(quat_tf, odom_quat);
+
+            geometry_msgs::TransformStamped odom_trans;
+            odom_trans.header.stamp = current_time;
+            odom_trans.header.frame_id = "odom";
+            odom_trans.child_frame_id = "base_link";
+
+            odom_trans.transform.translation.x = x;
+            odom_trans.transform.translation.y = y;
+            odom_trans.transform.translation.z = 0.0;
+            odom_trans.transform.rotation = odom_quat;
+
+            odom_broadcaster.sendTransform(odom_trans);
+
+            nav_msgs::Odometry odom;
+            odom.header.stamp = current_time;
+            odom.header.frame_id = "odom";
+
+            odom.pose.pose.position.x = x;
+            odom.pose.pose.position.y = y;
+            odom.pose.pose.position.z = 0.0;
+            odom.pose.pose.orientation = odom_quat;
+
+            odom.pose.covariance[0] = 1e-2;
+            odom.pose.covariance[7] = 1e-2;
+            odom.pose.covariance[14] = 1e5;
+            odom.pose.covariance[21] = 1e5;
+            odom.pose.covariance[28] = 1e5;
+            odom.pose.covariance[35] = 1e-2;
+
+            odom.child_frame_id = "base_link";
+            odom.twist.twist.linear.x = vx;
+            odom.twist.twist.linear.y = vy;
+            odom.twist.twist.angular.z = vth;
+            odom.twist.covariance[0] = 1e-2;
+            odom.twist.covariance[7] = 1e-2;
+            odom.twist.covariance[14] = 1e5;
+            odom.twist.covariance[21] = 1e5;
+            odom.twist.covariance[28] = 1e5;
+            odom.twist.covariance[35] = 1e-2;
+
+            odom_pub.publish(odom);
+
+            last_time = current_time;
+
+            motor_left_status.update = false;
+            motor_right_status.update = false;
+
+            //printf("%lf\t%lf\t%lf\n",x, y, th*180.0/M_PI);
+            //printf("time %lf\n",dt);
         }
 
         signal(SIGINT, mySigintHandler);
@@ -254,8 +345,7 @@ int main(int argc, char **argv){
             ros::shutdown();
         }
 
-        ros::spinOnce();
-        loop_rate.sleep();
+        r.sleep();
     }
 
     printf("Finish Loop\n");

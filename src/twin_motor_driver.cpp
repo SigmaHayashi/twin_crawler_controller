@@ -20,6 +20,12 @@
 #define fd1_address "/dev/ttyUSB-MotorL"
 #define fd2_address "/dev/ttyUSB-MotorR"
 
+// #define fd1_address "/dev/ttyUSB_motor_l"
+// #define fd2_address "/dev/ttyUSB_motor_r"
+
+// #define fd1_address "/dev/ttyUSB1"
+// #define fd2_address "/dev/ttyUSB0"
+
 const bool use_motor_left = true;
 const bool use_motor_right = true;
 
@@ -234,7 +240,6 @@ int main(int argc, char **argv){
                 //printf("motor_left false\n");
             }
         }
-
         if(use_motor_right){
             if(motor_right.update()){
                 //printf("motor_right true\n");

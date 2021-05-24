@@ -1,0 +1,11 @@
+<launch>
+	<node pkg="twin_crawler_controller" type="twin_motor_driver" name="twin_motor_driver" output="screen">
+	</node>
+
+         <node pkg="turtlebot_teleop" type="turtlebot_teleop_key" name="turtlebot_teleop_keyboard"  output="screen">
+         <remap from="/turtlebot_teleop_keyboard/cmd_vel" to="/cmd_vel"/>
+         </node>
+
+	<node pkg="twin_crawler_controller" type="vehicle_controller" name="vehicle_controller" output="screen">
+	</node>
+</launch>

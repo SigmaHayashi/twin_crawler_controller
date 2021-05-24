@@ -23,7 +23,6 @@ bool NidecMotor::update(){
     int start_idx, end_idx;
     bool start_buffering = false;
     bool end_buffering = false;
-
     /*
     printf("read_buf : ");
     for(int i = 0; i < 128; i++){
@@ -31,7 +30,7 @@ bool NidecMotor::update(){
     }
     printf("\n");
     */
-    
+
     for(int i = 0; i < 128; i ++){
         if(!start_buffering && (read_buf[i] == 0x7e)){
             start_idx = i;
@@ -51,12 +50,10 @@ bool NidecMotor::update(){
         analyze_buf[i] = read_buf[start_idx + i];
     }
     analyzeReadData(analyze_buf, end_idx - start_idx + 1);
-    
     for(int i = 0; i < 128; i ++){
         read_buf[i] = 0;
         read_buf_index = 0;
     }
-
     return true;
 }
 
@@ -418,41 +415,52 @@ void NidecMotor::analyzeReadData(uint8_t *read_data, int length){
         printf("%02x ", read_data[i]);
     }
     printf("\n");
-    
-    analyzed_data.raw_data = read_data;
-    analyzed_data.send_from = read_data[1];
-    analyzed_data.send_to = read_data[2];
-    analyzed_data.data_length = (uint16_t)read_data[3] << 8 | (uint16_t)read_data[4];
-    analyzed_data.operation_command = read_data[5];
-    if(analyzed_data.data_length > 3){
-        analyzed_data.attribute_command = (uint16_t)read_data[6] << 8 | (uint16_t)read_data[7];
-        
-        if(analyzed_data.data_length > 5){
-            analyzed_data.data = &read_data[8];
-        }
-    }
-    analyzed_data.check_sum = read_data[3 + analyzed_data.data_length];
 
-    if(analyzed_data.operation_command == 0x11){
-        motor->returnACK(analyzed_data.data);
-    }
+    if(((uint16_t)read_data[3] << 8 | (uint16_t)read_data[4]) < 10){
+  
+        analyzed_data.raw_data = read_data;  
 
-    printf("\n");
-    printf("send_from : 0x%02x\n", analyzed_data.send_from);
-    printf("send_to : 0x%02x\n", analyzed_data.send_to);
-    printf("data_length : 0x%04x\n", analyzed_data.data_length);
-    printf("operation_command : 0x%02x\n", analyzed_data.operation_command);
-    if(analyzed_data.data_length > 3){
-        printf("attribute_command : 0x%04x\n", analyzed_data.attribute_command);
+        analyzed_data.send_from = read_data[1];    
+
+        analyzed_data.send_to = read_data[2];
+
+        analyzed_data.data_length = (uint16_t)read_data[3] << 8 | (uint16_t)read_data[4];   
+
+        analyzed_data.operation_command = read_data[5];
+        if(analyzed_data.data_length > 3){
+            analyzed_data.attribute_command = (uint16_t)read_data[6] << 8 | (uint16_t)read_data[7];  
+     
         if(analyzed_data.data_length > 5){
-            printf("data : 0x");
-            for(int i = 0; i < analyzed_data.data_length - 5; i++){
-                printf("%02x", analyzed_data.data[i]);
+                analyzed_data.data = &read_data[8];
+
             }
-            printf("\n");
-        }
-    }
-    printf("check_sum : 0x%02x\n", analyzed_data.check_sum);
+        }   
+        printf("data_length : 0x%04x\n", analyzed_data.data_length);
+		printf("2\n");
+
+	    analyzed_data.check_sum = read_data[3 + analyzed_data.data_length];
+ 
+	    if(analyzed_data.operation_command == 0x11){
+	        motor->returnACK(analyzed_data.data);
+	    }   
+	
+	    printf("\n");
+	    printf("send_from : 0x%02x\n", analyzed_data.send_from);
+	    printf("send_to : 0x%02x\n", analyzed_data.send_to);
+	    printf("data_length : 0x%04x\n", analyzed_data.data_length);
+	    printf("operation_command : 0x%02x\n", 	analyzed_data.operation_command);
+	    if(analyzed_data.data_length > 3){
+	        printf("attribute_command : 0x%04x\n", analyzed_data.attribute_command);
+	        if(analyzed_data.data_length > 5){
+	            printf("data : 0x");
+	            for(int i = 0; i < analyzed_data.data_length - 5; i++){
+	                printf("%02x", analyzed_data.data[i]);
+	            }
+	            printf("\n");
+	        }
+	    }
+	    printf("check_sum : 0x%02x\n", analyzed_data.check_sum);
+	}
 }
 
 void NidecMotor::returnACK(uint8_t *data){
